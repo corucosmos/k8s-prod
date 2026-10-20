@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onu-get-data-deployment
+  namespace: onu-get-data-ns
+  labels:
+    app: onu-get-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: onu-get-data
+  template:
+    metadata:
+      labels:
+        app: onu-get-data
+    spec:
+      hostNetwork: true
+      containers:
+      - name: onu-get-data-ns
+        image: onu-get-data:latest
+        imagePullPolicy: Never
+        securityContext:
+          privileged: true
+        env:
+        - name: ROUTER_URL
+          valueFrom:
+            secretKeyRef:
+              name: onu-get-data-secret
+              key: ROUTER_URL
+        - name: ROUTER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onu-get-data-secret
+              key: ROUTER_USER
+        - name: ROUTER_PASS
+          valueFrom:
+            secretKeyRef:
+              name: onu-get-data-secret
+              key: ROUTER_PASS
+        - name: URL_API
+          valueFrom:
+            secretKeyRef:
+              name: onu-get-data-secret
+              key: URL_API
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: onu-get-data-secret
+              key: API_KEY
+        volumeMounts:
+        - name: datos-onu
+          mountPath: /app/data
+        - name: dshm
+          mountPath: /dev/shm
+      volumes:
+      - name: datos-onu
+        hostPath:
+          path: /ruta/absoluta/a/tu/proyecto/app/datos_onu
+          type: DirectoryOrCreate
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi

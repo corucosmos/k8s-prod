@@ -1,0 +1,70 @@
+name: Deploy Onu Get Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag de la imagen en Docker Hub, SIN "v" (ej: 1.2.0)'
+        required: true
+        default: ''
+
+permissions:
+  contents: write   # Necesario para guardar en Git el cambio de versión en los manifiestos
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true   # Necesario para hacer el git push al final
+
+      - name: Validar versión indicada
+        run: |
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            echo "❌ Debes indicar el tag de la imagen a desplegar."
+            exit 1
+          fi
+
+      - name: Deploy and Verify
+        run: |
+          set -e
+          export KUBECONFIG=$HOME/.kube/config
+
+          TARGET_DIR="onu-get-data"
+          IMAGE_NAME="${{ secrets.DOCKER_IMAGE_ONU_GET_DATA }}"
+          NEW_TAG="${{ github.event.inputs.version }}"
+          NAMESPACE=$(grep 'name:' $TARGET_DIR/namespace.yaml | awk '{print $2}' | head -n 1)
+
+          echo "🚀 Desplegando Onu Get Data -> Versión: $NEW_TAG"
+
+          # --- Actualizar tag en el manifiesto de deployment ---
+          sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${NEW_TAG}|g" "$TARGET_DIR/deployment.yaml"
+
+          # --- Aplicar recursos base (idempotente) ---
+          kubectl apply -f "$TARGET_DIR/namespace.yml"
+          kubectl apply -f "$TARGET_DIR/sealed-secret.yml"
+
+          # --- Aplicar deployment con la nueva versión ---
+          kubectl apply -f "$TARGET_DIR/deployment.yaml"
+
+          # --- Verificar Rollout ---
+          echo "⏳ Verificando rollout..."
+          kubectl rollout status deployment/onu-get-data-deployment -n "$NAMESPACE" --timeout=120s
+
+          echo "✅ Despliegue completado."
+
+      - name: Commit del tag desplegado
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add onu-get-data/deployment.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "deploy Onu Get Data: version=${{ github.event.inputs.version }}"
+            git push
+          else
+            echo "Sin cambios que comitear (el tag ya coincidía con el archivo guardado en el repo)."
+          fi
