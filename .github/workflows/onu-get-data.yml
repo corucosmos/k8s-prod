@@ -36,19 +36,19 @@ jobs:
           TARGET_DIR="onu-get-data"
           IMAGE_NAME="${{ secrets.DOCKER_IMAGE_ONU_GET_DATA }}"
           NEW_TAG="${{ github.event.inputs.version }}"
-          NAMESPACE=$(grep 'name:' $TARGET_DIR/namespace.yaml | awk '{print $2}' | head -n 1)
+          NAMESPACE=$(grep 'name:' $TARGET_DIR/namespace.yml | awk '{print $2}' | head -n 1)
 
           echo "🚀 Desplegando Onu Get Data -> Versión: $NEW_TAG"
 
           # --- Actualizar tag en el manifiesto de deployment ---
-          sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${NEW_TAG}|g" "$TARGET_DIR/deployment.yaml"
+          sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${NEW_TAG}|g" "$TARGET_DIR/deployment.yml"
 
           # --- Aplicar recursos base (idempotente) ---
           kubectl apply -f "$TARGET_DIR/namespace.yml"
           kubectl apply -f "$TARGET_DIR/sealed-secret.yml"
 
           # --- Aplicar deployment con la nueva versión ---
-          kubectl apply -f "$TARGET_DIR/deployment.yaml"
+          kubectl apply -f "$TARGET_DIR/deployment.yml"
 
           # --- Verificar Rollout ---
           echo "⏳ Verificando rollout..."
@@ -61,7 +61,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add onu-get-data/deployment.yaml
+          git add onu-get-data/deployment.yml
           if ! git diff --cached --quiet; then
             git commit -m "deploy Onu Get Data: version=${{ github.event.inputs.version }}"
             git push
