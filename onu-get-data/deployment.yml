@@ -18,8 +18,8 @@ spec:
       hostNetwork: true
       containers:
       - name: onu-get-data-ns
-        image: onu-get-data:latest
-        imagePullPolicy: Never
+        image: icorujo/onu-get-data:latest
+        imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
         env:
